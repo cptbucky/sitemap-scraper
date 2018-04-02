@@ -5,9 +5,7 @@ from src.sitemapscraper import SitemapScraper
 
 
 # things to consider
-#     query strings as different pages
 #     limit the depth of a crawl to create a small sitemap ?! probably not relevant
-#     create an iprinter that can be swapped out for file output
 
 from tests.stubresponsehandler import StubResponseHandler
 
@@ -30,9 +28,19 @@ class SitemapScraperTests(unittest.TestCase):
 
         report = self.on_scrape_url()
 
-        self.assertIn(self.monzo_site, report[0])
+        self.assertEqual(1, len(report))
+        self.assert_sitemap_entry_correct(report, 0, [None, self.monzo_site])
 
-    def test_html_response_has_single_child_link_expect_returned(self):
+    def test_html_response_has_single_child_link_report_contains_link(self):
+        blog_url = '/blog'
+        self.given_stub_response({self.monzo_site: [blog_url]})
+
+        report = self.on_scrape_url()
+
+        self.assertEqual(2, len(report))
+        self.assert_sitemap_entry_correct(report, 1, [0, blog_url])
+
+    def test_html_response_has_multiple_child_links_report_contains_all_links(self):
         url_one = '/blog'
         url_two = '/contact'
         url_three = '/features'
@@ -40,27 +48,19 @@ class SitemapScraperTests(unittest.TestCase):
 
         report = self.on_scrape_url()
 
-        self.assertIn(url_one, report[1])
-        self.assertIn(url_two, report[2])
-        self.assertIn(url_three, report[3])
+        self.assertEqual(4, len(report))
+        self.assert_sitemap_entry_correct(report, 1, [0, url_one])
+        self.assert_sitemap_entry_correct(report, 2, [0, url_two])
+        self.assert_sitemap_entry_correct(report, 3, [0, url_three])
 
-    def test_html_response_has_multiple_children_link_expect_returned(self):
-        blog_url = '/blog'
-        self.given_stub_response({self.monzo_site: [blog_url]})
-
-        report = self.on_scrape_url()
-
-        self.assertIn(blog_url, report[1])
-
-    def test_html_response_single_child_has_single_child_report_has_correct_levels(self):
+    def test_html_response_single_child_has_single_child_report_links_pages(self):
         self.given_stub_response({self.monzo_site: ['/blog'], '/blog': ['/my-blog-entry']})
 
         report = self.on_scrape_url()
 
-        self.assertEqual(0, report[1][0])
-        self.assertEqual('/blog', report[1][1])
-        self.assertEqual(1, report[2][0])
-        self.assertEqual('/my-blog-entry', report[2][1])
+        self.assertEqual(3, len(report))
+        self.assert_sitemap_entry_correct(report, 1, [0, '/blog'])
+        self.assert_sitemap_entry_correct(report, 2, [1, '/my-blog-entry'])
 
     def test_html_response_has_single_child_and_external_links_report_should_contain_single_child_only(self):
         url_one = 'http://www.google.com'
@@ -71,7 +71,7 @@ class SitemapScraperTests(unittest.TestCase):
         report = self.on_scrape_url()
 
         self.assertEqual(2, len(report))
-        self.assertIn(url_two, report[1])
+        self.assert_sitemap_entry_correct(report, 1, [0, url_two])
 
     def test_html_response_has_relative_and_absolute_links_report_should_contain_both(self):
         url_one = 'https://monzo.com/blog'
@@ -81,8 +81,8 @@ class SitemapScraperTests(unittest.TestCase):
         report = self.on_scrape_url()
 
         self.assertEqual(3, len(report))
-        self.assertEqual(url_one, report[1][1])
-        self.assertEqual(url_two, report[2][1])
+        self.assert_sitemap_entry_correct(report, 1, [0, url_one])
+        self.assert_sitemap_entry_correct(report, 2, [0, url_two])
 
     def test_html_response_has_two_links_with_different_protocols_report_should_contain_both(self):
         url_one = 'https://monzo.com/blog'
@@ -92,8 +92,19 @@ class SitemapScraperTests(unittest.TestCase):
         report = self.on_scrape_url()
 
         self.assertEqual(3, len(report))
-        self.assertEqual(url_one, report[1][1])
-        self.assertEqual(url_two, report[2][1])
+        self.assert_sitemap_entry_correct(report, 1, [0, url_one])
+        self.assert_sitemap_entry_correct(report, 2, [0, url_two])
+
+    def test_html_response_has_two_links_with_different_query_strings_report_should_contain_both(self):
+        url_one = 'https://monzo.com/blog?platform=mobile'
+        url_two = 'https://monzo.com/blog?platform=desktop'
+        self.given_stub_response({self.monzo_site: [url_one, url_two]})
+
+        report = self.on_scrape_url()
+
+        self.assertEqual(3, len(report))
+        self.assert_sitemap_entry_correct(report, 1, [0, url_one])
+        self.assert_sitemap_entry_correct(report, 2, [0, url_two])
 
     def test_html_response_has_duplicate_links_report_should_contain_single(self):
         url_one = 'https://monzo.com/blog'
@@ -102,7 +113,7 @@ class SitemapScraperTests(unittest.TestCase):
         report = self.on_scrape_url()
 
         self.assertEqual(2, len(report))
-        self.assertEqual(url_one, report[1][1])
+        self.assert_sitemap_entry_correct(report, 1, [0, url_one])
 
     def test_two_child_pages_contain_same_link_report_should_contain_both(self):
         url_one = 'https://monzo.com/customer-blog'
@@ -113,10 +124,10 @@ class SitemapScraperTests(unittest.TestCase):
         report = self.on_scrape_url()
 
         self.assertEqual(5, len(report))
-        self.assertEqual(url_one, report[1][1])
-        self.assertEqual(url_three, report[2][1])
-        self.assertEqual(url_two, report[3][1])
-        self.assertEqual(url_three, report[4][1])
+        self.assert_sitemap_entry_correct(report, 1, [0, url_one])
+        self.assert_sitemap_entry_correct(report, 2, [1, url_three])
+        self.assert_sitemap_entry_correct(report, 3, [0, url_two])
+        self.assert_sitemap_entry_correct(report, 4, [3, url_three])
 
 #     recursive links - ensures the implementation stops at crawling parents but includes parent link in child page
     def test_recursive_link_structure_should_not_crawl_levels_above_and_report_should_contain_links(self):
@@ -127,12 +138,12 @@ class SitemapScraperTests(unittest.TestCase):
         report = self.on_scrape_url()
 
         self.assertEqual(7, len(report))
-        self.assertEqual(url_one, report[1][1])
-        self.assertEqual(url_two, report[2][1])
-        self.assertEqual(url_one, report[3][1])
-        self.assertEqual(url_two, report[4][1])
-        self.assertEqual(url_one, report[5][1])
-        self.assertEqual(url_two, report[6][1])
+        self.assert_sitemap_entry_correct(report, 1, [0, url_one])
+        self.assert_sitemap_entry_correct(report, 2, [1, url_two])
+        self.assert_sitemap_entry_correct(report, 3, [2, url_one])
+        self.assert_sitemap_entry_correct(report, 4, [0, url_two])
+        self.assert_sitemap_entry_correct(report, 5, [4, url_one])
+        self.assert_sitemap_entry_correct(report, 6, [5, url_two])
 
     def on_scrape_url(self):
         return SitemapScraper(self.monzo_site).scrape()
@@ -151,6 +162,11 @@ class SitemapScraperTests(unittest.TestCase):
         handler = StubResponseHandler(links_by_url)
         mock_urlrequest.Request.side_effect = handler.Request
         mock_urlrequest.urlopen.side_effect = handler.urlopen
+
+    def assert_sitemap_entry_correct(self, report, entry_index, expected_entry):
+        self.assertGreaterEqual(len(report) - 1, entry_index)
+        self.assertEqual(report[entry_index][0], expected_entry[0])
+        self.assertEqual(report[entry_index][1], expected_entry[1])
 
 
 if __name__ == '__main__':
