@@ -30,7 +30,7 @@ class SitemapScraper:
                 continue
 
             sitemap.append([parent_index, child_url])
-            self.__scrape_target(sitemap, parent_index + 1, child_url)
+            self.__scrape_target(sitemap, len(sitemap) - 1, child_url)
 
     @staticmethod
     def __get_target_html_content(target_url):
