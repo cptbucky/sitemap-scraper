@@ -26,10 +26,14 @@ class SitemapScraper:
             if self.__external_link(child_url):
                 continue
 
-            if self.__sitemap_contains_url(sitemap, child_url, parent_index):
+            if self.__link_exists_in_current_page(sitemap, child_url, parent_index):
                 continue
 
             sitemap.append([parent_index, child_url])
+
+            if self.__link_exists_as_parent_page(sitemap, child_url, parent_index):
+                continue
+
             self.__scrape_target(sitemap, len(sitemap) - 1, child_url)
 
     @staticmethod
@@ -50,7 +54,7 @@ class SitemapScraper:
         return not internal_url
 
     @staticmethod
-    def __sitemap_contains_url(sitemap, child_url, parent_index):
+    def __link_exists_in_current_page(sitemap, child_url, parent_index):
         found_exact_match = False
 
         for i in range(0, len(sitemap)):
@@ -58,3 +62,12 @@ class SitemapScraper:
                 return True
 
         return found_exact_match
+
+    def __link_exists_as_parent_page(self, sitemap, child_url, parent_index):
+        if parent_index is None:
+            return False
+
+        if sitemap[parent_index][1] == child_url:
+            return True
+        else:
+            return self.__link_exists_as_parent_page(sitemap, child_url, sitemap[parent_index][0])

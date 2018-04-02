@@ -118,8 +118,21 @@ class SitemapScraperTests(unittest.TestCase):
         self.assertEqual(url_two, report[3][1])
         self.assertEqual(url_three, report[4][1])
 
-#     recursive links - ensure following considers existing crawls/results
-#         use a linked list to the parent url index and the url itself [parent-index, url]
+#     recursive links - ensures the implementation stops at crawling parents but includes parent link in child page
+    def test_recursive_link_structure_should_not_crawl_levels_above_and_report_should_contain_links(self):
+        url_one = 'https://monzo.com/blog'
+        url_two = 'https://monzo.com/blog/blog-entry'
+        self.given_stub_response({self.monzo_site: [url_one, url_two], url_one: [url_two], url_two: [url_one]})
+
+        report = self.on_scrape_url()
+
+        self.assertEqual(7, len(report))
+        self.assertEqual(url_one, report[1][1])
+        self.assertEqual(url_two, report[2][1])
+        self.assertEqual(url_one, report[3][1])
+        self.assertEqual(url_two, report[4][1])
+        self.assertEqual(url_one, report[5][1])
+        self.assertEqual(url_two, report[6][1])
 
     def on_scrape_url(self):
         return SitemapScraper(self.monzo_site).scrape()
