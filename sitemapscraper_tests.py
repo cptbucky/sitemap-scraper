@@ -18,16 +18,15 @@ class SitemapScraperTests(unittest.TestCase):
 
     def setUp(self):
         self.monzo_site = 'https://monzo.com/'
-        self.mock_urlopen = patch('urllib.request.urlopen').start()
 
     def test_ensure_scraper_crawls_target_page(self):
-        self.given_response_empty(self.monzo_site)
+        mock_urlopen = self.given_mock_response()
         SitemapScraper().scrape(self.monzo_site)
-        self.mock_urlopen.assert_called_once()
-        self.assertEqual(self.mock_urlopen.call_args[0][0].full_url, self.monzo_site)
+        mock_urlopen.assert_called_once()
+        self.assertEqual(mock_urlopen.call_args[0][0].full_url, self.monzo_site)
 
     def test_successful_scrape_reports_parent_url_in_sitemap(self):
-        self.given_response_empty(self.monzo_site)
+        self.given_stub_response({self.monzo_site: []})
         report = SitemapScraper().scrape(self.monzo_site)
         self.assertIn(self.monzo_site, report[0])
 
@@ -35,7 +34,7 @@ class SitemapScraperTests(unittest.TestCase):
         url_one = '/blog'
         url_two = '/contact'
         url_three = '/features'
-        self.given_response_with_links(self.monzo_site, [url_one, url_two, url_three])
+        self.given_stub_response({self.monzo_site: [url_one, url_two, url_three]})
         report = SitemapScraper().scrape(self.monzo_site)
         self.assertIn(url_one, report[1])
         self.assertIn(url_two, report[2])
@@ -43,20 +42,50 @@ class SitemapScraperTests(unittest.TestCase):
 
     def test_html_response_has_multiple_children_link_expect_returned(self):
         blog_url = '/blog'
-        self.given_response_with_links(self.monzo_site, [blog_url])
+        self.given_stub_response({self.monzo_site: [blog_url]})
         report = SitemapScraper().scrape(self.monzo_site)
         self.assertIn(blog_url, report[1])
 
-    def test_ensure_scraper_crawls_child_pages(self):
-        self.given_response_with_links(self.monzo_site, ['/blog'])
-        SitemapScraper().scrape(self.monzo_site)
-        self.mock_urlopen.assert_called_once()
-        self.assertEqual(self.mock_urlopen.call_args[0][0].full_url, self.monzo_site)
+    def test_html_response_single_child_has_single_child_report_has_correct_levels(self):
+        self.given_stub_response({self.monzo_site: ['/blog'], '/blog': ['/my-blog-entry']})
+        report = SitemapScraper().scrape(self.monzo_site)
+        self.assertEqual(0, report[1][0])
+        self.assertEqual('/blog', report[1][1])
+        self.assertEqual(1, report[2][0])
+        self.assertEqual('/my-blog-entry', report[2][1])
 
-    def given_response_empty(self, parent_url):
-        self.given_response(parent_url, "")
+    @staticmethod
+    def given_mock_response():
+        mock_urlopen = patch('urllib.request.urlopen').start()
+        mock_response = Mock()
+        mock_response.read.side_effect = [""]
+        mock_urlopen.return_value = mock_response
+        return mock_urlopen
 
-    def given_response_with_links(self, parent_url, links):
+    @staticmethod
+    def given_stub_response(links_by_url):
+        mock_urlrequest = patch('urllib.request').start()
+        handler = StubResponseHandler(links_by_url)
+        mock_urlrequest.Request.side_effect = handler.Request
+        mock_urlrequest.urlopen.side_effect = handler.urlopen
+
+
+if __name__ == '__main__':
+    unittest.main()
+
+
+class StubResponseHandler:
+    def __init__(self, links_by_url):
+        self.response_map = links_by_url
+
+    def Request(self, target_url, headers={}):
+        return target_url
+
+    def urlopen(self, target_url):
+        content = self.build_response_for_url(target_url)
+        return StubResponse(content)
+
+    def build_response_for_url(self, parent_url):
         html_start_tags = '<!DOCTYPE html>' \
                                 '<html>' \
                                 '<head></head>' \
@@ -64,19 +93,19 @@ class SitemapScraperTests(unittest.TestCase):
 
         links_html = ""
 
-        for i in range(0, len(links)):
-            links_html += f'<a href="{links[i]}">random-text!</a>'
+        if parent_url in self.response_map:
+            for i in range(0, len(self.response_map[parent_url])):
+                links_html += f'<a href="{self.response_map[parent_url][i]}">random-text!</a>'
 
         html_end_tags = '</body>' \
                         '</html>'
 
-        self.given_response(html_start_tags + links_html + html_end_tags)
-
-    def given_response(self, parent_url, response):
-        mock_response = Mock()
-        mock_response.read.side_effect = [response]
-        self.mock_urlopen.return_value = mock_response
+        return html_start_tags + links_html + html_end_tags
 
 
-if __name__ == '__main__':
-    unittest.main()
+class StubResponse:
+    def __init__(self, content):
+        self.content = content
+
+    def read(self):
+        return self.content
