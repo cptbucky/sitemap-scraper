@@ -100,6 +100,15 @@ class SitemapScraperTests(unittest.TestCase):
         self.assertEqual(url_one, report[1][1])
         self.assertEqual(url_two, report[2][1])
 
+    def test_html_response_has_duplicate_links_report_should_contain_single(self):
+        url_one = 'https://monzo.com/blog'
+        self.given_stub_response({self.monzo_site: [url_one, url_one]})
+
+        report = self.on_scrape_url()
+
+        self.assertEqual(2, len(report))
+        self.assertEqual(url_one, report[1][1])
+
     def on_scrape_url(self):
         return SitemapScraper(self.monzo_site).scrape()
 

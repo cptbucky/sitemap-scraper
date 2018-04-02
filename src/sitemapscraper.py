@@ -22,8 +22,13 @@ class SitemapScraper:
 
         for i in range(0, len(contained_hrefs)):
             child_url = contained_hrefs[i]
+
             if self.__external_link(child_url):
                 continue
+
+            if self.__sitemap_contains_url(sitemap, child_url, parent_index):
+                continue
+
             sitemap.append([parent_index, child_url])
             self.__scrape_target(sitemap, parent_index + 1, child_url)
 
@@ -43,3 +48,13 @@ class SitemapScraper:
         url = urlsplit(child_url)
         internal_url = (url.netloc == '') or (url.netloc == urlsplit(self.__base_url).netloc)
         return not internal_url
+
+    @staticmethod
+    def __sitemap_contains_url(sitemap, child_url, parent_index):
+        found_exact_match = False
+
+        for i in range(0, len(sitemap)):
+            if sitemap[i][0] == parent_index and sitemap[i][1] == child_url:
+                return True
+
+        return found_exact_match
