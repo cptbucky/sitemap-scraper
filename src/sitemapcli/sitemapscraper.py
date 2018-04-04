@@ -5,8 +5,15 @@ from urllib.parse import urlsplit
 
 
 class SitemapScraper:
-    def __init__(self, base_url):
-        self.__base_url = base_url
+    def __init__(self, base_url, url_limit=100):
+        self.url_limit = url_limit
+        self.__base_url = base_url.strip('/')
+        self.__url_matcher = re.compile(
+            r'([A-Za-z]{3,9})://([-;:&=\+\$,\w]+@{1})?([-A-Za-z0-9\.]+)+:?(\d+)?((/[-\+~%/\.\w]+)?\??([-\+=&;%@\.\w]+)?#?([\w]+)?)?'
+        )
+        self.__anchor_tag_matcher = re.compile(
+            r'<a\s+(?:[^>]*?\s+)?href="([^"]*)"'
+        )
 
     def scrape(self):
         sitemap = [[None, self.__base_url, []]]
@@ -24,17 +31,29 @@ class SitemapScraper:
             if self.__external_link(child_link):
                 continue
 
-            if self.__link_exists_in_current_page(sitemap, child_link, parent_index):
+            # descoping traversing of paths
+            if self.__requires_traversing(child_link):
                 continue
 
-            sitemap.append([parent_index, child_link, []])
+            absolute_child_link = self.__to_absolute_path(child_link)
+
+            if not self.__valid_url(absolute_child_link):
+                continue
+
+            if self.__link_exists_in_current_page(sitemap, absolute_child_link, parent_index):
+                continue
+
+            sitemap.append([parent_index, absolute_child_link, []])
             child_index = len(sitemap) - 1
             sitemap[parent_index][2].append(child_index)
 
-            if self.__link_exists_as_parent_page(sitemap, child_link, parent_index):
+            if self.__link_exists_as_parent_page(sitemap, absolute_child_link, parent_index):
                 continue
 
-            self.__scrape_target(sitemap, child_link, child_index)
+            if len(sitemap) > self.url_limit:
+                return
+
+            self.__scrape_target(sitemap, absolute_child_link, child_index)
 
     @staticmethod
     def __get_target_html_content(target_url):
@@ -43,15 +62,23 @@ class SitemapScraper:
         html_content = response.read()
         return html_content
 
-    @staticmethod
-    def __parse_html_for_hrefs(html_content):
-        urls = re.findall(r'<a\s+(?:[^>]*?\s+)?href="([^"]*)"', html_content)
+    def __parse_html_for_hrefs(self, html_content):
+        urls = self.__anchor_tag_matcher.findall(html_content)
         return urls
 
     def __external_link(self, child_url):
         url = urlsplit(child_url)
         internal_url = (url.netloc == '') or (url.netloc == urlsplit(self.__base_url).netloc)
         return not internal_url
+
+    def __valid_url(self, child_url):
+        # being pretty stringent here, url must include protocol
+        is_valid_url = self.__url_matcher.match(child_url)
+        return is_valid_url
+
+    @staticmethod
+    def __requires_traversing(child_url):
+        return child_url.startswith('.')
 
     @staticmethod
     def __link_exists_in_current_page(sitemap, child_url, parent_index):
@@ -71,3 +98,9 @@ class SitemapScraper:
             return True
         else:
             return self.__link_exists_as_parent_page(sitemap, child_url, sitemap[parent_index][0])
+
+    def __to_absolute_path(self, url):
+        if url.startswith('/'):
+            return f"{self.__base_url}{url}".strip('/')
+        else:
+            return url

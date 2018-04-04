@@ -1,4 +1,5 @@
 import sys
+import os
 
 
 class TreeConsoleWriter:
@@ -11,8 +12,8 @@ class TreeConsoleWriter:
                 self.__write_sitemap_entry(sitemap, entry, 1)
 
     def __write_sitemap_entry(self, sitemap, entry, depth):
-        depth_indicator = "|____" * depth
-        sys.stdout.write(f"{depth_indicator} {entry[1]}")
+        depth_indicator = "|    " * depth
+        sys.stdout.write(f"{depth_indicator} {entry[1]}{os.linesep}")
 
         if len(entry[2]) > 0:
             for child_entry_index in entry[2]:

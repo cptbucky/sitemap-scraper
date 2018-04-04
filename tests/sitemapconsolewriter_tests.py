@@ -1,21 +1,23 @@
 import unittest
+import os
 
 from unittest.mock import patch, call
+
 from src.sitemapcli.sitemapconsolewriter import TreeConsoleWriter
 
 
 class TreeConsoleWriterTests(unittest.TestCase):
 
     def setUp(self):
-        self.mock_sys = patch('src.treeconsolewriter.sys').start()
+        self.mock_sys = patch('src.sitemapcli.sitemapconsolewriter.sys').start()
 
     def test_sitemap_with_no_children_ensure_console_print_correct(self):
         sut = TreeConsoleWriter()
 
-        sut.write([[None, "https://monzo.com/"]])
+        sut.write([[None, "https://monzo.com/", []]])
 
         self.mock_sys.stdout.write.assert_has_calls([
-            call("|____ https://monzo.com/")
+            call(f"|     https://monzo.com/{os.linesep}")
         ])
 
     def test_sitemap_with_single_child_ensure_console_print_correct(self):
@@ -27,8 +29,8 @@ class TreeConsoleWriterTests(unittest.TestCase):
         ])
 
         self.mock_sys.stdout.write.assert_has_calls([
-            call("|____ https://monzo.com/"),
-            call("|____|____ /blog"),
+            call(f"|     https://monzo.com/{os.linesep}"),
+            call(f"|    |     /blog{os.linesep}"),
         ])
 
     def test_sitemap_with_three_children_ensure_console_print_correct(self):
@@ -42,10 +44,10 @@ class TreeConsoleWriterTests(unittest.TestCase):
         ])
 
         self.mock_sys.stdout.write.assert_has_calls([
-            call("|____ https://monzo.com/"),
-            call("|____|____ /blog"),
-            call("|____|____ /contact"),
-            call("|____|____ /news"),
+            call(f"|     https://monzo.com/{os.linesep}"),
+            call(f"|    |     /blog{os.linesep}"),
+            call(f"|    |     /contact{os.linesep}"),
+            call(f"|    |     /news{os.linesep}"),
         ])
 
     def test_sitemap_with_multi_depth_children_ensure_console_print_correct(self):
@@ -66,15 +68,15 @@ class TreeConsoleWriterTests(unittest.TestCase):
         ])
 
         self.mock_sys.stdout.write.assert_has_calls([
-            call("|____ https://monzo.com/"),
-            call("|____|____ /blog"),
-            call("|____|____|____ /blog/post-1"),
-            call("|____|____ /contact"),
-            call("|____|____|____ /contact/contact-1"),
-            call("|____|____|____|____ /contact/contact-1/contact-2"),
-            call("|____|____|____|____|____ /contact/contact-1/contact-2/contact-3"),
-            call("|____|____ /news"),
-            call("|____|____|____ /news/news-1"),
-            call("|____|____|____|____ /news/news-1/news-2"),
-            call("|____|____|____|____ /news/news-1/news-3"),
+            call(f"|     https://monzo.com/{os.linesep}"),
+            call(f"|    |     /blog{os.linesep}"),
+            call(f"|    |    |     /blog/post-1{os.linesep}"),
+            call(f"|    |     /contact{os.linesep}"),
+            call(f"|    |    |     /contact/contact-1{os.linesep}"),
+            call(f"|    |    |    |     /contact/contact-1/contact-2{os.linesep}"),
+            call(f"|    |    |    |    |     /contact/contact-1/contact-2/contact-3{os.linesep}"),
+            call(f"|    |     /news{os.linesep}"),
+            call(f"|    |    |     /news/news-1{os.linesep}"),
+            call(f"|    |    |    |     /news/news-1/news-2{os.linesep}"),
+            call(f"|    |    |    |     /news/news-1/news-3{os.linesep}"),
         ])
