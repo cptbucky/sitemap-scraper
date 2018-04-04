@@ -10,31 +10,32 @@ class SitemapScraper:
         self.__base_url = base_url
 
     def scrape(self):
-        sitemap_linked_list = [[None, self.__base_url]]
+        sitemap = [[None, self.__base_url, []]]
+        # sitemap = []
 
-        self.__scrape_target(sitemap_linked_list, 0, self.__base_url)
+        self.__scrape_target(sitemap, self.__base_url, 0)
 
-        return sitemap_linked_list
+        return sitemap
 
-    def __scrape_target(self, sitemap, parent_index, target_url):
+    def __scrape_target(self, sitemap, target_url, parent_index):
         content = self.__get_target_html_content(target_url)
         contained_hrefs = self.__parse_html_for_hrefs(content)
 
-        for i in range(0, len(contained_hrefs)):
-            child_url = contained_hrefs[i]
-
-            if self.__external_link(child_url):
+        for child_link in contained_hrefs:
+            if self.__external_link(child_link):
                 continue
 
-            if self.__link_exists_in_current_page(sitemap, child_url, parent_index):
+            if self.__link_exists_in_current_page(sitemap, child_link, parent_index):
                 continue
 
-            sitemap.append([parent_index, child_url])
+            sitemap.append([parent_index, child_link, []])
+            child_index = len(sitemap) - 1
+            sitemap[parent_index][2].append(child_index)
 
-            if self.__link_exists_as_parent_page(sitemap, child_url, parent_index):
+            if self.__link_exists_as_parent_page(sitemap, child_link, parent_index):
                 continue
 
-            self.__scrape_target(sitemap, len(sitemap) - 1, child_url)
+            self.__scrape_target(sitemap, child_link, child_index)
 
     @staticmethod
     def __get_target_html_content(target_url):
