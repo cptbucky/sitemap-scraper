@@ -1,7 +1,7 @@
 import unittest
 
 from unittest.mock import patch, call
-from src.treeconsolewriter import TreeConsoleWriter
+from src.sitemapcli.sitemapconsolewriter import TreeConsoleWriter
 
 
 class TreeConsoleWriterTests(unittest.TestCase):

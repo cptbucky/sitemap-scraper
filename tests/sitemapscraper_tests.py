@@ -1,7 +1,7 @@
 import unittest
 
 from unittest.mock import patch, Mock
-from src.sitemapscraper import SitemapScraper
+from src.sitemapcli.sitemapscraper import SitemapScraper
 
 
 # things to consider

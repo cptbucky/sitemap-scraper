@@ -5,13 +5,11 @@ from urllib.parse import urlsplit
 
 
 class SitemapScraper:
-    # inject interface for network request?
     def __init__(self, base_url):
         self.__base_url = base_url
 
     def scrape(self):
         sitemap = [[None, self.__base_url, []]]
-        # sitemap = []
 
         self.__scrape_target(sitemap, self.__base_url, 0)
 
