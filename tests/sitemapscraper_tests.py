@@ -24,7 +24,7 @@ class SitemapScraperTests(unittest.TestCase):
         self.assertEqual(mock_urlopen.call_args[0][0].full_url, self.monzo_site)
 
     def test_successful_scrape_reports_parent_url_in_sitemap(self):
-        self.given_stub_response({self.monzo_site: []})
+        self.given_stub_response({self.monzo_site: [[]]})
 
         report = self.on_scrape_url()
 
@@ -33,7 +33,7 @@ class SitemapScraperTests(unittest.TestCase):
 
     def test_html_response_has_single_child_link_report_contains_link(self):
         blog_url = '/blog'
-        self.given_stub_response({self.monzo_site: [blog_url]})
+        self.given_stub_response({self.monzo_site: [[blog_url]]})
 
         report = self.on_scrape_url()
 
@@ -45,7 +45,7 @@ class SitemapScraperTests(unittest.TestCase):
         url_one = '/blog'
         url_two = '/contact'
         url_three = '/features'
-        self.given_stub_response({self.monzo_site: [url_one, url_two, url_three]})
+        self.given_stub_response({self.monzo_site: [[url_one, url_two, url_three]]})
 
         report = self.on_scrape_url()
 
@@ -56,7 +56,7 @@ class SitemapScraperTests(unittest.TestCase):
         self.assert_sitemap_entry_correct(report, 3, [0, url_three, []])
 
     def test_html_response_single_child_has_single_child_report_links_pages(self):
-        self.given_stub_response({self.monzo_site: ['/blog'], '/blog': ['/my-blog-entry']})
+        self.given_stub_response({self.monzo_site: [['/blog']], '/blog': [['/my-blog-entry']]})
 
         report = self.on_scrape_url()
 
@@ -69,7 +69,7 @@ class SitemapScraperTests(unittest.TestCase):
         url_one = 'http://www.google.com'
         url_two = '/contact'
         url_three = 'https://www.google.co.uk/search?q=monzo'
-        self.given_stub_response({self.monzo_site: [url_one, url_two, url_three]})
+        self.given_stub_response({self.monzo_site: [[url_one, url_two, url_three]]})
 
         report = self.on_scrape_url()
 
@@ -80,7 +80,7 @@ class SitemapScraperTests(unittest.TestCase):
     def test_html_response_has_relative_and_absolute_links_report_should_contain_both(self):
         url_one = 'https://monzo.com/blog'
         url_two = '/contact'
-        self.given_stub_response({self.monzo_site: [url_one, url_two]})
+        self.given_stub_response({self.monzo_site: [[url_one, url_two]]})
 
         report = self.on_scrape_url()
 
@@ -92,7 +92,21 @@ class SitemapScraperTests(unittest.TestCase):
     def test_html_response_has_two_links_with_different_protocols_report_should_contain_both(self):
         url_one = 'https://monzo.com/blog'
         url_two = 'http://monzo.com/contact'
-        self.given_stub_response({self.monzo_site: [url_one, url_two]})
+        self.given_stub_response({self.monzo_site: [[url_one, url_two]]})
+
+        report = self.on_scrape_url()
+
+        self.assertEqual(3, len(report))
+        self.assert_sitemap_entry_correct(report, 0, [None, self.monzo_site, [1, 2]])
+        self.assert_sitemap_entry_correct(report, 1, [0, url_one, []])
+        self.assert_sitemap_entry_correct(report, 2, [0, url_two, []])
+
+    def test_html_response_includes_style_tags_report_should_contain_anchor_tag_hrefs_only(self):
+        url_one = 'https://monzo.com/blog'
+        url_two = 'http://monzo.com/contact'
+        self.given_stub_response(
+            {self.monzo_site: [[url_one, url_two], ["https://monzo.com/main.css"]]}
+        )
 
         report = self.on_scrape_url()
 
@@ -104,7 +118,7 @@ class SitemapScraperTests(unittest.TestCase):
     def test_html_response_has_two_links_with_different_query_strings_report_should_contain_both(self):
         url_one = 'https://monzo.com/blog?platform=mobile'
         url_two = 'https://monzo.com/blog?platform=desktop'
-        self.given_stub_response({self.monzo_site: [url_one, url_two]})
+        self.given_stub_response({self.monzo_site: [[url_one, url_two]]})
 
         report = self.on_scrape_url()
 
@@ -115,7 +129,7 @@ class SitemapScraperTests(unittest.TestCase):
 
     def test_html_response_has_duplicate_links_report_should_contain_single(self):
         url_one = 'https://monzo.com/blog'
-        self.given_stub_response({self.monzo_site: [url_one, url_one]})
+        self.given_stub_response({self.monzo_site: [[url_one, url_one]]})
 
         report = self.on_scrape_url()
 
@@ -127,7 +141,7 @@ class SitemapScraperTests(unittest.TestCase):
         url_one = 'https://monzo.com/customer-blog'
         url_two = 'https://monzo.com/tech-blog'
         url_three = 'https://monzo.com/blog/entry'
-        self.given_stub_response({self.monzo_site: [url_one, url_two], url_one: [url_three], url_two: [url_three]})
+        self.given_stub_response({self.monzo_site: [[url_one, url_two]], url_one: [[url_three]], url_two: [[url_three]]})
 
         report = self.on_scrape_url()
 
@@ -142,7 +156,7 @@ class SitemapScraperTests(unittest.TestCase):
     def test_recursive_link_structure_should_not_crawl_levels_above_and_report_should_contain_links(self):
         url_one = 'https://monzo.com/blog'
         url_two = 'https://monzo.com/blog/blog-entry'
-        self.given_stub_response({self.monzo_site: [url_one, url_two], url_one: [url_two], url_two: [url_one]})
+        self.given_stub_response({self.monzo_site: [[url_one, url_two]], url_one: [[url_two]], url_two: [[url_one]]})
 
         report = self.on_scrape_url()
 
@@ -162,14 +176,14 @@ class SitemapScraperTests(unittest.TestCase):
     def given_mock_response():
         mock_urlopen = patch('urllib.request.urlopen').start()
         mock_response = Mock()
-        mock_response.read.side_effect = [""]
+        mock_response.read.side_effect = ["".encode('utf-8')]
         mock_urlopen.return_value = mock_response
         return mock_urlopen
 
     @staticmethod
-    def given_stub_response(links_by_url):
+    def given_stub_response(hrefs_map):
         mock_urlrequest = patch('urllib.request').start()
-        handler = StubResponseHandler(links_by_url)
+        handler = StubResponseHandler(hrefs_map)
         mock_urlrequest.Request.side_effect = handler.Request
         mock_urlrequest.urlopen.side_effect = handler.urlopen
 

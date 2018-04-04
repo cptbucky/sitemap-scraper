@@ -17,7 +17,8 @@ class SitemapScraper:
 
     def __scrape_target(self, sitemap, target_url, parent_index):
         content = self.__get_target_html_content(target_url)
-        contained_hrefs = self.__parse_html_for_hrefs(content)
+        html_content = str(content, 'utf-8')
+        contained_hrefs = self.__parse_html_for_hrefs(html_content)
 
         for child_link in contained_hrefs:
             if self.__external_link(child_link):
@@ -44,7 +45,7 @@ class SitemapScraper:
 
     @staticmethod
     def __parse_html_for_hrefs(html_content):
-        urls = re.findall(r'href=[\'"]?([^\'" >]+)', html_content)
+        urls = re.findall(r'<a\s+(?:[^>]*?\s+)?href="([^"]*)"', html_content)
         return urls
 
     def __external_link(self, child_url):
